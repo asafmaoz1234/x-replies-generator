@@ -3,14 +3,14 @@ import os
 from typing import Dict, Any
 import openai
 from datetime import datetime
-
 import tweepy
-
 import reply_x_util
 from prompt_builder import build_prompt
+from utils.input_sanitizer import ContentSanitizer
 from x_poster import post_to_x
-
 from utils.logger_util import logger
+
+content_sanitizer = ContentSanitizer()
 
 
 def load_prompt_template():
@@ -37,7 +37,7 @@ def process_reply_thread(client: tweepy.Client, message: Dict[Any, Any], thread:
         last_reply = thread[-1]
 
         # Build prompt with thread context
-        message['reply_text'] = last_reply['text']
+        message["reply_text"] = content_sanitizer.sanitize_text(message.get("reply_text"))
         message['thread_context'] = [reply['text'] for reply in thread]
         logger.info('Building prompt with thread context',
                     extra={'extra_data': {'reply_text': message['reply_text'],
@@ -114,7 +114,7 @@ def lambda_handler(event: Dict[Any, Any], context: Any) -> Dict[str, Any]:
 
         # Load reply prompt template
         prompt_template = load_prompt_template()
-        errors = None
+        errors = []
         # Process each thread
         processed_replies = []
         for thread in reply_threads:
@@ -123,16 +123,20 @@ def lambda_handler(event: Dict[Any, Any], context: Any) -> Dict[str, Any]:
                 processed_replies.append(result)
                 logger.info('Successfully processed reply thread', extra={'extra_data': result})
             except Exception as e:
-                logger.error('Error processing reply thread',
-                             extra={'extra_data': {'error': str(e), 'thread': thread}})
-                errors = errors + e
+                error_details = {
+                    'thread_id': thread[-1]['id'],
+                    'error': str(e),
+                    'timestamp': datetime.utcnow().isoformat()
+                }
+                errors.append(error_details)
+                logger.error('Error processing reply thread', extra={'extra_data': error_details})
                 continue  # Continue with next thread even if one fails
         return {
-            'statusCode': 200,
+            'statusCode': 200 if not errors else 207,
             'body': json.dumps({
                 'message': 'Successfully processed reply threads',
                 'processed_replies': processed_replies,
-                'errors': str(errors),
+                'errors': errors,
                 'timestamp': datetime.utcnow().isoformat()
             })
         }

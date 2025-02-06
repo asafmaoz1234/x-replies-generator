@@ -88,6 +88,11 @@ The Lambda function expects SQS messages in the following format:
 └── requirements.txt       # Project dependencies
 ```
 
+## Testing
+```bash
+pytest tests/test_main.py -v --cov=main --cov-report=term-missing
+```
+
 ## Deployment
 
 1. Run the build script to create the deployment package:
