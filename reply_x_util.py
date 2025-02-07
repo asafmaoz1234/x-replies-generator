@@ -1,14 +1,14 @@
 import os
 import requests
-from typing import List, Dict
+from typing import List, Dict, Tuple
 from utils.logger_util import logger
 
 
-def filter_threads_with_op_last_reply(threads: List[Dict], original_author_id: str) -> List[Dict]:
+def filter_threads_with_op_last_reply(threads: List[Dict], original_author_id: str) ->Tuple[Dict[str, List[Dict]], List[Dict]]:
     logger.info("Input threads:", extra={'extra_data': {'threads': threads}})
     reply_threads = {}
 
-    reply_map = {}
+    reply_map: Dict[str, List[Dict]] = {}
     ai_tweet_responses = []
     non_ai_tweets = []
 
@@ -28,6 +28,19 @@ def filter_threads_with_op_last_reply(threads: List[Dict], original_author_id: s
         if non_ai_tweet['id'] not in ai_tweet_responses:
             others_last_replies.append(non_ai_tweet)
 
+    # find all conversation for needed reply tweets
+    for tweet in others_last_replies:
+        thread = []
+        for reply in threads:
+            if reply['conversation_id'] == tweet['conversation_id'] and reply['id'] != tweet['id']:
+                thread.append(reply)
+        if thread:
+            if tweet['id'] not in reply_map:
+                reply_map[tweet['id']] = []
+            reply_map[tweet['id']].append(thread)
+
+    logger.info("Reply map:", extra={'extra_data': {'reply_map': reply_map}})
+
     # Debug logging
     logger.info("All threads found:")
     for thread in reply_threads.values():
@@ -46,7 +59,7 @@ def filter_threads_with_op_last_reply(threads: List[Dict], original_author_id: s
             'text': tweet['text']
         }})
 
-    return others_last_replies
+    return reply_map, others_last_replies
 
 
 def fetch_replies_to_post(post_id: str, original_author_id: str) -> List[Dict]:
