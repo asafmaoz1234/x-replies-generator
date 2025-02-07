@@ -21,7 +21,8 @@ pip install --platform manylinux2014_x86_64 \
 cp ../main.py .
 cp ../prompt_builder.py .
 cp ../x_poster.py .
-cp ../utils/logger_util.py .
+cp ../utils/logger_util.py ./utils/
+cp ../utils/input_sanitizer.py ./utils/
 cp ../reply_x_util.py .
 cp ../prompts/reply_prompt.txt ./prompts/
 
