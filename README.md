@@ -90,7 +90,7 @@ The Lambda function expects SQS messages in the following format:
 
 ## Testing
 ```bash
-pytest tests/test_main.py -v --cov=main --cov-report=term-missing
+pytest tests/main-tests.py -v --cov=main --cov-report=term-missing
 ```
 
 ## Deployment

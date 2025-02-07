@@ -24,7 +24,7 @@ def load_prompt_template():
     except Exception as e:
         logger.error(f'Error loading reply_prompt template: {str(e)}')
         # Fallback prompts
-        return "You are a social media manager.\nCreate a friendly reply to: {content}\nTone: {tone}"
+        return "You are a social media manager.\nCreate a friendly reply to: {topic}\nTone: {tone}"
 
 
 def process_reply_thread(client: tweepy.Client, message: Dict[Any, Any], thread: Dict, model: str,

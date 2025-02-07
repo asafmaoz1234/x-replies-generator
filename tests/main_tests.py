@@ -1,10 +1,9 @@
-import pytest
-from unittest.mock import Mock, patch, mock_open
-from datetime import datetime
 import json
-import tweepy
+from unittest.mock import Mock, patch, mock_open
+
 import openai
-import os
+import pytest
+
 from main import lambda_handler, process_reply_thread, load_prompt_template
 
 
@@ -60,7 +59,7 @@ class TestMainModule:
         return response
 
     def test_load_prompt_template_success(self):
-        mock_template = "Test template {content}"
+        mock_template = "Test template {topic}"
         with patch("builtins.open", mock_open(read_data=mock_template)):
             result = load_prompt_template()
             assert result == mock_template

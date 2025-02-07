@@ -6,6 +6,7 @@ rm -f function.zip
 
 # Create fresh deployment directory structure
 mkdir -p deployment-package/prompts
+mkdir -p deployment-package/utils
 
 # Install dependencies
 cd deployment-package
