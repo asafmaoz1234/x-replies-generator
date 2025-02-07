@@ -5,64 +5,46 @@ from utils.logger_util import logger
 
 
 def filter_threads_with_op_last_reply(threads: List[Dict], original_author_id: str) -> List[Dict]:
-    # Group replies by their parent tweet to form threads
+    logger.info("Input threads:", extra={'extra_data': {'threads': threads}})
     reply_threads = {}
-    for reply in threads:
-        # Get the parent tweet ID from referenced_tweets
-        parent_id = None
-        if 'referenced_tweets' in reply:
-            for ref in reply['referenced_tweets']:
-                if ref['type'] == 'replied_to':
-                    parent_id = ref['id']
-                    break
 
-        if parent_id:
-            if parent_id not in reply_threads:
-                reply_threads[parent_id] = []
-            reply_threads[parent_id].append(reply)
+    reply_map = {}
+    ai_tweet_responses = []
+    non_ai_tweets = []
 
-    # Sort replies in each thread by creation time
-    for thread in reply_threads.values():
-        thread.sort(key=lambda x: x['created_at'])
+    # Map responses to parent tweets and collect AI tweets
+    for tweet in threads:
+        if tweet['author_id'] == original_author_id:
+            if 'referenced_tweets' in tweet:
+                for ref in tweet['referenced_tweets']:
+                    if ref['type'] == 'replied_to' and ref['id'] not in ai_tweet_responses:
+                        ai_tweet_responses.append(ref['id'])
+            continue
+        non_ai_tweets.append(tweet)
 
-    # Filter threads where original poster was last to reply
-    op_last_replies = []
-    for thread in reply_threads.values():
-        if thread and thread[-1]['author_id'] == original_author_id:
-            op_last_replies.append(thread)
-
-    # Filter threads where someone else was last to reply
+    # Find nonAi tweets without responses
     others_last_replies = []
+    for non_ai_tweet in non_ai_tweets:
+        if non_ai_tweet['id'] not in ai_tweet_responses:
+            others_last_replies.append(non_ai_tweet)
+
+    # Debug logging
+    logger.info("All threads found:")
     for thread in reply_threads.values():
-        if thread and thread[-1]['author_id'] != original_author_id:
-            others_last_replies.append(thread)
-
-    # Print all replies for debugging
-    print("\nAll replies found:")
-    for reply in threads:
-        print(f"ID: {reply['id']}")
-        print(f"Author ID: {reply['author_id']}")
-        print(f"Text: {reply['text']}")
-        print("---")
-
-    print("\nThreads where original poster was last to reply:")
-    for thread in op_last_replies:
-        print(f"\nThread with {len(thread)} replies:")
         for reply in thread:
-            print(f"ID: {reply['id']}")
-            print(f"Author ID: {reply['author_id']}")
-            print(f"Text: {reply['text']}")
-            print("---")
+            logger.info("all replies to thread: ", extra={'extra_data': {
+                'thread_id': reply['id'],
+                'author_id': reply['author_id'],
+                'text': reply['text']
+            }})
 
-    # Print threads where OP was last to reply
-    print("\nThreads requiring response (OP was not last to reply):")
-    for thread in others_last_replies:
-        print(f"\nThread with {len(thread)} replies:")
-        for reply in thread:
-            print(f"ID: {reply['id']}")
-            print(f"Author ID: {reply['author_id']}")
-            print(f"Text: {reply['text']}")
-            print("---")
+    logger.info("Threads requiring response:")
+    for tweet in others_last_replies:
+        logger.info("requiring response: ", extra={'extra_data': {
+            'thread_id': tweet['id'],
+            'author_id': tweet['author_id'],
+            'text': tweet['text']
+        }})
 
     return others_last_replies
 
@@ -105,7 +87,7 @@ def fetch_replies_to_post(post_id: str, original_author_id: str) -> List[Dict]:
                              'status_code': response.status_code,
                              'response': response.text
                          }})
-            return []
+            raise Exception(f'Failed to fetch replies for post {post_id}, exception: {response.text}')
 
         result = response.json()
 
