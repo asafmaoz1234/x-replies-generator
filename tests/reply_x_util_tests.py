@@ -4,6 +4,28 @@ from reply_x_util import filter_threads_with_op_last_reply
 
 class TestThreadFilter:
     @pytest.fixture
+    def threads_needed_reply_no_conversation(self):
+        return [
+            {
+                "conversation_id": "18875814642014742539",
+                "id": "18877408015951544469",
+                "edit_history_tweet_ids": [
+                    "18877408015951544469"
+                ],
+                "created_at": "2025-02-07T05:50:54.000Z",
+                "referenced_tweets": [
+                    {
+                        "type": "replied_to",
+                        "id": "18875814642014742539"
+                    }
+                ],
+                "author_id": "16088142869",
+                "text": "@ai_daily97375 interesting, can you give some more examples?",
+                "in_reply_to_user_id": "1884611255320674304"
+            }
+        ]
+
+    @pytest.fixture
     def threads_needed_reply(self):
         return [
             {
@@ -266,6 +288,13 @@ class TestThreadFilter:
         reply_map, tweets_to_reply = filter_threads_with_op_last_reply(threads_needed_reply, original_author_id)
         assert len(tweets_to_reply) == 1
         assert tweets_to_reply[0]["id"] == "18877408015951544469"
+
+    def test_other_last_reply_no_conversation(self, threads_needed_reply_no_conversation):
+        original_author_id = "1884611255320674304"
+        reply_map, tweets_to_reply = filter_threads_with_op_last_reply(threads_needed_reply_no_conversation, original_author_id)
+        assert len(tweets_to_reply) == 1
+        assert tweets_to_reply[0]["id"] == "18877408015951544469"
+        assert len(reply_map) == 0
 
     def test_other_last_reply_reply_needed_conversation(self, threads_needed_reply_conversation):
         original_author_id = "1884611255320674304"

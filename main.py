@@ -1,6 +1,6 @@
 import json
 import os
-from typing import Dict, Any
+from typing import Dict, Any, List
 import openai
 from datetime import datetime
 import tweepy
@@ -27,18 +27,33 @@ def load_prompt_template():
         return "You are a social media manager.\nCreate a friendly reply to: {topic}\nTone: {tone}"
 
 
-def process_reply_thread(client: tweepy.Client, message: Dict[Any, Any], thread: Dict, model: str,
+###
+# Process reply threads
+# tweet_to_respond: List of tweets to respond to
+# thread_replies: List of replies in each thread
+def process_reply_thread(client: tweepy.Client,
+                         message: Dict[Any, Any],
+                         tweet_to_respond: Dict,
+                         thread_replies: List[Dict],
+                         model: str,
                          prompt_template: str) -> Dict:
     """
     Process a single reply thread by generating and posting a response.
     """
     try:
+
         # Get the last reply in the thread
-        last_reply = thread[-1]
+        last_reply = tweet_to_respond
 
         # Build prompt with thread context
-        message["reply_text"] = content_sanitizer.sanitize_text(message.get("reply_text"))
-        message['thread_context'] = [reply['text'] for reply in thread]
+        message["reply_text"] = content_sanitizer.sanitize_text(last_reply.get('text', ''))
+        thread_context = ''
+        if thread_replies:
+            for reply in thread_replies[0]:
+                if thread_context != '':
+                    thread_context += ','
+                thread_context += '{' + content_sanitizer.sanitize_text(reply.get('text', '')) + '}'
+        message['thread_context'] = thread_context
         logger.info('Building prompt with thread context',
                     extra={'extra_data': {'reply_text': message['reply_text'],
                                           'thread_context': message['thread_context']}})
@@ -93,9 +108,9 @@ def lambda_handler(event: Dict[Any, Any], context: Any) -> Dict[str, Any]:
         logger.info('Processing SQS REPLY message', extra={'extra_data': {'message': message}})
 
         # Get all reply threads needing response
-        reply_threads = reply_x_util.fetch_replies_to_post(message.get('post_id'), message.get('original_author_id'))
+        reply_threads, tweets_to_reply = reply_x_util.fetch_replies_to_post(message.get('post_id'), message.get('original_author_id'))
 
-        if not reply_threads:
+        if not tweets_to_reply:
             logger.info('No replies requiring response')
             return {
                 'statusCode': 200,
@@ -117,14 +132,14 @@ def lambda_handler(event: Dict[Any, Any], context: Any) -> Dict[str, Any]:
         errors = []
         # Process each thread
         processed_replies = []
-        for thread in reply_threads:
+        for tweet in tweets_to_reply:
             try:
-                result = process_reply_thread(x_client, message, thread, model, prompt_template)
+                result = process_reply_thread(x_client, message, tweet, reply_threads.get(tweet['id']), model, prompt_template)
                 processed_replies.append(result)
                 logger.info('Successfully processed reply thread', extra={'extra_data': result})
             except Exception as e:
                 error_details = {
-                    'thread_id': thread[-1]['id'],
+                    'thread_id': tweet['id'],
                     'error': str(e),
                     'timestamp': datetime.utcnow().isoformat()
                 }

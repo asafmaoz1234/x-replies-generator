@@ -62,7 +62,7 @@ def filter_threads_with_op_last_reply(threads: List[Dict], original_author_id: s
     return reply_map, others_last_replies
 
 
-def fetch_replies_to_post(post_id: str, original_author_id: str) -> List[Dict]:
+def fetch_replies_to_post(post_id: str, original_author_id: str) ->Tuple[Dict[str, List[Dict]], List[Dict]]:
     """
     Fetches recent replies to a post and identifies threads where someone other
     than the original poster was the last to reply.

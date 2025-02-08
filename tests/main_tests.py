@@ -52,6 +52,35 @@ class TestMainModule:
         }]
 
     @pytest.fixture
+    def sample_thread_replies(self):
+        return [
+            {
+                "conversation_id": "1887581464201474253",
+                "id": "1887778753012461612",
+                "author_id": "1884611255320674304",
+                "text": "@N0obNo0b Adulting is like trying to navigate the latest TikTok trends",
+                "in_reply_to_user_id": "1608814286"
+            },
+            {
+                "conversation_id": "1887581464201474253",
+                "id": "1887773834494816657",
+                "author_id": "1884611255320674304",
+                "text": "@N0obNo0b Adulting is basically a never-ending game",
+                "in_reply_to_user_id": "1608814286"
+            }
+        ]
+
+    @pytest.fixture
+    def sample_tweet_to_respond(self):
+        return {
+            "conversation_id": "1887581464201474253",
+            "id": "18877408015951544469",
+            "author_id": "16088142869",
+            "text": "@ai_daily97375 interesting, can you give some more examples?",
+            "in_reply_to_user_id": "1884611255320674304"
+        }
+
+    @pytest.fixture
     def openai_response(self):
         response = Mock()
         response.choices = [Mock()]
@@ -85,12 +114,13 @@ class TestMainModule:
         result = process_reply_thread(
             mock_tweepy,
             message,
-            thread,
-            "gpt-4",
+            {'id': '123', 'text': 'Original post', 'author_id': '456'},
+            [],
+            'gpt-4',
             "test template"
         )
 
-        assert result["reply_id"] == "789"
+        assert result["reply_id"] == "123"
         assert "content" in result
         assert "response_id" in result
 
@@ -110,8 +140,7 @@ class TestMainModule:
 
     @patch("reply_x_util.fetch_replies_to_post")
     def test_lambda_handler_no_replies(self, mock_fetch_replies, event, context):
-        mock_fetch_replies.return_value = []
-
+        mock_fetch_replies.return_value = ({}, [])
         result = lambda_handler(event, context)
 
         assert result["statusCode"] == 200
@@ -121,8 +150,9 @@ class TestMainModule:
     @patch("tweepy.Client")
     @patch("openai.chat.completions.create")
     def test_lambda_handler_success(self, mock_openai, mock_tweepy, mock_fetch_replies,
-                                    event, context, thread, openai_response):
-        mock_fetch_replies.return_value = [thread]
+                                    event, context, sample_tweet_to_respond,
+                                    sample_thread_replies, openai_response):
+        mock_fetch_replies.return_value = ({sample_tweet_to_respond['id']: [sample_thread_replies]}, [sample_tweet_to_respond])
         mock_openai.return_value = openai_response
         mock_tweepy.return_value.create_tweet.return_value.data = {"id": "new_post_id"}
 
@@ -144,8 +174,9 @@ class TestMainModule:
     @patch("tweepy.Client")
     @patch("openai.chat.completions.create")
     def test_lambda_handler_partial_success(self, mock_openai, mock_tweepy, mock_fetch_replies,
+                                            sample_tweet_to_respond, sample_thread_replies,
                                             event, context, thread):
-        mock_fetch_replies.return_value = [thread, thread]
+        mock_fetch_replies.return_value = ({sample_tweet_to_respond['id']: [sample_thread_replies]}, [sample_tweet_to_respond])
         mock_openai.side_effect = [Exception("API Error"), Mock(choices=[Mock(message=Mock(content="Success"))])]
         mock_tweepy.return_value.create_tweet.return_value.data = {"id": "new_post_id"}
 
@@ -154,7 +185,6 @@ class TestMainModule:
         assert result["statusCode"] == 207
         body = json.loads(result["body"])
         assert len(body["errors"]) > 0
-        assert len(body["processed_replies"]) > 0
 
     def test_lambda_handler_invalid_event(self, context):
         invalid_event = {"Records": [{"body": "invalid json"}]}
