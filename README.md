@@ -1,6 +1,7 @@
 # X Auto-Responder
 
-An AWS Lambda function that automatically generates and posts contextually relevant responses to X (formerly Twitter) comments using OpenAI's GPT models.
+Automatically generates and posts contextually relevant responses to X (formerly Twitter) comments using OpenAI's GPT models.
+The design is to run this bot as on an AWS lambda, as part of a larger process, and trigger the reply process using SQS messages.
 
 ## Description
 
